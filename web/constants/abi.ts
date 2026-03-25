@@ -21,7 +21,8 @@ export const certificateABI = [
     "anonymous": false,
     "inputs": [
       { "indexed": true, "internalType": "bytes32", "name": "certId", "type": "bytes32" },
-      { "indexed": false, "internalType": "string", "name": "studentId", "type": "string" }
+      { "indexed": false, "internalType": "string", "name": "studentId", "type": "string" },
+      { "indexed": false, "internalType": "uint256", "name": "timestamp", "type": "uint256" }
     ],
     "name": "CertificateIssued",
     "type": "event"
@@ -29,7 +30,8 @@ export const certificateABI = [
   {
     "anonymous": false,
     "inputs": [
-      { "indexed": true, "internalType": "bytes32", "name": "certId", "type": "bytes32" }
+      { "indexed": true, "internalType": "bytes32", "name": "certId", "type": "bytes32" },
+      { "indexed": false, "internalType": "uint256", "name": "timestamp", "type": "uint256" }
     ],
     "name": "CertificateRevoked",
     "type": "event"
@@ -49,17 +51,6 @@ export const certificateABI = [
     "type": "function"
   },
   {
-    "inputs": [{ "internalType": "bytes32", "name": "_certId", "type": "bytes32" }],
-    "name": "verifyCertificate",
-    "outputs": [
-      { "internalType": "bool", "name": "exists", "type": "bool" },
-      { "internalType": "bool", "name": "isRevoked", "type": "bool" },
-      { "internalType": "bytes32", "name": "fileHash", "type": "bytes32" }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
       { "internalType": "bytes32", "name": "_certId", "type": "bytes32" },
       { "internalType": "bytes32", "name": "_fileHash", "type": "bytes32" },
@@ -69,6 +60,25 @@ export const certificateABI = [
     "name": "issueCertificate",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "bytes32", "name": "_certId", "type": "bytes32" }],
+    "name": "revokeCertificate",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "bytes32", "name": "_certId", "type": "bytes32" }],
+    "name": "verifyCertificate",
+    "outputs": [
+      { "internalType": "bool", "name": "exists", "type": "bool" },
+      { "internalType": "bool", "name": "isRevoked", "type": "bool" },
+      { "internalType": "bytes32", "name": "fileHash", "type": "bytes32" },
+      { "internalType": "string", "name": "studentId", "type": "string" }
+    ],
+    "stateMutability": "view",
     "type": "function"
   }
 ] as const;
