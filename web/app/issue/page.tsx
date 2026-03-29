@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { calculateFileHash } from '../../lib/hash';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { useWriteContract } from 'wagmi';
+import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { certificateABI } from '../../constants/abi';
 
 export default function IssuePage() {
@@ -11,11 +11,17 @@ export default function IssuePage() {
   const [status, setStatus] = useState('');
   const [generatedCertId, setGeneratedCertId] = useState('');
   const [ipfsCID, setIpfsCID] = useState('');
+  const [isIssued, setIsIssued] = useState(false);
 
-  const { writeContract, isPending } = useWriteContract();
+  const { writeContract, isPending, data: txHash } = useWriteContract();
+
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+    hash: txHash,
+  });
 
   const handleIssue = async () => {
     if (!file || !studentId) return alert("Please provide both file and Student ID");
+    if (isIssued) return alert("Certificate already issued. Refresh to issue a new one.");
 
     try {
       // Step 1: Hash the file
@@ -49,10 +55,27 @@ export default function IssuePage() {
         args: [certId, fileHash as `0x${string}`, cid, studentId],
       });
 
+      setIsIssued(true);
+
     } catch (err) {
       console.error(err);
       setStatus('Error during issuance. Please try again.');
+      setIsIssued(false);
     }
+  };
+
+  const getButtonLabel = () => {
+    if (isPending) return 'Waiting for wallet...';
+    if (isConfirming) return 'Confirming on blockchain...';
+    if (isConfirmed) return 'Certificate Issued!';
+    if (isIssued) return 'Already Issued';
+    return 'Issue on Blockchain';
+  };
+
+  const getStatusMessage = () => {
+    if (isConfirming) return 'Transaction submitted, waiting for confirmation...';
+    if (isConfirmed) return 'Certificate successfully issued on blockchain!';
+    return status;
   };
 
   return (
@@ -67,26 +90,38 @@ export default function IssuePage() {
         <input
           type="text"
           placeholder="Student ID (e.g. 2024-001)"
-          className="w-full p-3 border border-gray-300 rounded-lg mb-4 outline-none focus:border-blue-500"
+          className="w-full p-3 border border-gray-300 rounded-lg mb-4 outline-none focus:border-blue-500 disabled:bg-gray-100"
           onChange={(e) => setStudentId(e.target.value)}
+          disabled={isIssued}
         />
 
         <input
           type="file"
-          className="w-full mb-6 text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+          className="w-full mb-6 text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50"
           onChange={(e) => setFile(e.target.files?.[0] || null)}
+          disabled={isIssued}
         />
 
         <button
           onClick={handleIssue}
-          disabled={isPending}
-          className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 disabled:bg-gray-400 transition-all shadow-lg shadow-blue-200"
+          disabled={isPending || isConfirming || isConfirmed || isIssued}
+          className={`w-full py-3 rounded-xl font-bold transition-all shadow-lg ${
+            isConfirmed
+              ? 'bg-green-600 text-white shadow-green-200 cursor-default'
+              : isIssued
+              ? 'bg-gray-400 text-white cursor-not-allowed'
+              : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-200'
+          }`}
         >
-          {isPending ? 'Confirming...' : 'Issue on Blockchain'}
+          {getButtonLabel()}
         </button>
 
-        {status && (
-          <p className="mt-4 text-center text-sm text-blue-600 font-medium">{status}</p>
+        {getStatusMessage() && (
+          <p className={`mt-4 text-center text-sm font-medium ${
+            isConfirmed ? 'text-green-600' : 'text-blue-600'
+          }`}>
+            {getStatusMessage()}
+          </p>
         )}
 
         {generatedCertId && (
@@ -108,6 +143,22 @@ export default function IssuePage() {
               {ipfsCID}
             </a>
           </div>
+        )}
+
+        {isConfirmed && (
+          <button
+            onClick={() => {
+              setFile(null);
+              setStudentId('');
+              setStatus('');
+              setGeneratedCertId('');
+              setIpfsCID('');
+              setIsIssued(false);
+            }}
+            className="w-full mt-4 py-2 rounded-xl font-medium border border-gray-300 text-gray-600 hover:bg-gray-50 transition-all text-sm"
+          >
+            Issue Another Certificate
+          </button>
         )}
       </div>
     </div>
