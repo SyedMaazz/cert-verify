@@ -1,39 +1,57 @@
-"use client";
-import { useState } from "react";
-import { calculateFileHash } from "../../lib/hash";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { useWriteContract } from "wagmi";
-import { certificateABI } from "../../constants/abi";
+'use client';
+import { useState } from 'react';
+import { calculateFileHash } from '../../lib/hash';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { useWriteContract } from 'wagmi';
+import { certificateABI } from '../../constants/abi';
 
 export default function IssuePage() {
   const [file, setFile] = useState<File | null>(null);
-  const [studentId, setStudentId] = useState("");
-  const [status, setStatus] = useState("");
-  const [generatedCertId, setGeneratedCertId] = useState("");
+  const [studentId, setStudentId] = useState('');
+  const [status, setStatus] = useState('');
+  const [generatedCertId, setGeneratedCertId] = useState('');
+  const [ipfsCID, setIpfsCID] = useState('');
 
   const { writeContract, isPending } = useWriteContract();
 
   const handleIssue = async () => {
-    if (!file || !studentId)
-      return alert("Please provide both file and Student ID");
+    if (!file || !studentId) return alert("Please provide both file and Student ID");
+
     try {
-      setStatus("Calculating fingerprint...");
+      // Step 1: Hash the file
+      setStatus('Calculating fingerprint...');
       const fileHash = await calculateFileHash(file);
-      const certId = `0x${Buffer.from(studentId + Date.now())
-        .toString("hex")
-        .slice(0, 64)
-        .padEnd(64, "0")}` as `0x${string}`;
+
+      // Step 2: Upload to IPFS via API route
+      setStatus('Uploading to IPFS...');
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const ipfsRes = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!ipfsRes.ok) throw new Error('IPFS upload failed');
+
+      const { cid } = await ipfsRes.json();
+      setIpfsCID(cid);
+
+      // Step 3: Generate cert ID and store on blockchain
+      const certId = `0x${Buffer.from(studentId + Date.now()).toString('hex').slice(0, 64).padEnd(64, '0')}` as `0x${string}`;
       setGeneratedCertId(certId);
-      setStatus("Confirm in your wallet...");
+
+      setStatus('Confirm in your wallet...');
       writeContract({
         address: process.env.NEXT_PUBLIC_CONTRACT_ADDRESS as `0x${string}`,
         abi: certificateABI,
-        functionName: "issueCertificate",
-        args: [certId, fileHash as `0x${string}`, "IPFS_TEMP", studentId],
+        functionName: 'issueCertificate',
+        args: [certId, fileHash as `0x${string}`, cid, studentId],
       });
+
     } catch (err) {
       console.error(err);
-      setStatus("Error generating hash.");
+      setStatus('Error during issuance. Please try again.');
     }
   };
 
@@ -64,23 +82,31 @@ export default function IssuePage() {
           disabled={isPending}
           className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 disabled:bg-gray-400 transition-all shadow-lg shadow-blue-200"
         >
-          {isPending ? "Confirming..." : "Issue on Blockchain"}
+          {isPending ? 'Confirming...' : 'Issue on Blockchain'}
         </button>
 
         {status && (
-          <p className="mt-4 text-center text-sm text-blue-600 font-medium">
-            {status}
-          </p>
+          <p className="mt-4 text-center text-sm text-blue-600 font-medium">{status}</p>
         )}
 
         {generatedCertId && (
           <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-            <p className="text-xs text-gray-500 mb-1">
-              Certificate ID (save this):
-            </p>
-            <p className="text-xs font-mono break-all text-gray-800">
-              {generatedCertId}
-            </p>
+            <p className="text-xs text-gray-500 mb-1 font-medium">Certificate ID (save this):</p>
+            <p className="text-xs font-mono break-all text-gray-800">{generatedCertId}</p>
+          </div>
+        )}
+
+        {ipfsCID && (
+          <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+            <p className="text-xs text-green-600 mb-1 font-medium">Stored on IPFS:</p>
+            <a
+              href={`${process.env.NEXT_PUBLIC_PINATA_GATEWAY}/ipfs/${ipfsCID}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-mono break-all text-green-700 hover:underline"
+            >
+              {ipfsCID}
+            </a>
           </div>
         )}
       </div>
