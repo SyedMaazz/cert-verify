@@ -1,158 +1,256 @@
-import Link from 'next/link';
+'use client';
+import { useState } from 'react';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { useWriteContract, useAccount, useReadContract } from 'wagmi';
+import { certificateABI } from '@/constants/abi';
 
-export default function Home() {
-  return (
-    <div className="min-h-screen text-white overflow-x-hidden" style={{ background: '#0d0a14' }}>
+const ADMIN_ADDRESS = process.env.NEXT_PUBLIC_ADMIN_ADDRESS?.toLowerCase();
 
-      {/* Subtle grid */}
-      <div className="fixed inset-0 z-0 pointer-events-none" style={{
-        backgroundImage: `linear-gradient(rgba(164,144,194,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(164,144,194,0.04) 1px, transparent 1px)`,
-        backgroundSize: '72px 72px'
-      }}/>
+export default function AdminPage() {
+  const [certIdToRevoke, setCertIdToRevoke] = useState('');
+  const [revokeStatus, setRevokeStatus] = useState('');
+  const [addressToGrant, setAddressToGrant] = useState('');
+  const [addressToRevoke, setAddressToRevoke] = useState('');
+  const [checkAddress, setCheckAddress] = useState('');
+  const [grantStatus, setGrantStatus] = useState('');
+  const [revokeRoleStatus, setRevokeRoleStatus] = useState('');
 
-      {/* Top glow blob */}
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] z-0 pointer-events-none" style={{
-        background: 'radial-gradient(ellipse, rgba(74,78,143,0.25) 0%, transparent 65%)'
-      }}/>
+  const { address, isConnected } = useAccount();
+  const { writeContract, isPending } = useWriteContract();
 
-      {/* Navbar */}
-      <nav className="relative z-10 flex justify-between items-center px-16 py-5" style={{ borderBottom: '1px solid rgba(164,144,194,0.08)' }}>
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm text-white" style={{ background: 'linear-gradient(135deg, #4a4e8f, #a490c2)' }}>
-            CV
+  const isAdmin = isConnected && address?.toLowerCase() === ADMIN_ADDRESS;
+
+  const { data: ISSUER_ROLE } = useReadContract({
+    address: process.env.NEXT_PUBLIC_CONTRACT_ADDRESS as `0x${string}`,
+    abi: certificateABI,
+    functionName: 'ISSUER_ROLE',
+  });
+
+  const { data: hasIssuerRole, refetch: recheckRole } = useReadContract({
+    address: process.env.NEXT_PUBLIC_CONTRACT_ADDRESS as `0x${string}`,
+    abi: certificateABI,
+    functionName: 'hasRole',
+    args: ISSUER_ROLE && checkAddress
+      ? [ISSUER_ROLE, checkAddress as `0x${string}`]
+      : undefined,
+    query: { enabled: !!ISSUER_ROLE && !!checkAddress },
+  });
+
+  const handleRevokeCert = () => {
+    if (!certIdToRevoke) return alert('Please enter a Certificate ID');
+    if (!certIdToRevoke.startsWith('0x')) return alert('Certificate ID must start with 0x');
+    try {
+      setRevokeStatus('Confirm in your wallet...');
+      writeContract({
+        address: process.env.NEXT_PUBLIC_CONTRACT_ADDRESS as `0x${string}`,
+        abi: certificateABI,
+        functionName: 'revokeCertificate',
+        args: [certIdToRevoke as `0x${string}`],
+      });
+      setRevokeStatus('Revocation submitted!');
+    } catch (err) {
+      console.error(err);
+      setRevokeStatus('Error revoking certificate.');
+    }
+  };
+
+  const handleGrantIssuer = () => {
+    if (!addressToGrant || !addressToGrant.startsWith('0x')) return alert('Please enter a valid wallet address');
+    if (!ISSUER_ROLE) return alert('Could not read ISSUER_ROLE from contract');
+    try {
+      setGrantStatus('Confirm in your wallet...');
+      writeContract({
+        address: process.env.NEXT_PUBLIC_CONTRACT_ADDRESS as `0x${string}`,
+        abi: certificateABI,
+        functionName: 'grantRole',
+        args: [ISSUER_ROLE, addressToGrant as `0x${string}`],
+      });
+      setGrantStatus('Issuer role granted successfully!');
+    } catch (err) {
+      console.error(err);
+      setGrantStatus('Error granting role.');
+    }
+  };
+
+  const handleRevokeIssuer = () => {
+    if (!addressToRevoke || !addressToRevoke.startsWith('0x')) return alert('Please enter a valid wallet address');
+    if (!ISSUER_ROLE) return alert('Could not read ISSUER_ROLE from contract');
+    try {
+      setRevokeRoleStatus('Confirm in your wallet...');
+      writeContract({
+        address: process.env.NEXT_PUBLIC_CONTRACT_ADDRESS as `0x${string}`,
+        abi: certificateABI,
+        functionName: 'revokeRole',
+        args: [ISSUER_ROLE, addressToRevoke as `0x${string}`],
+      });
+      setRevokeRoleStatus('Issuer role revoked!');
+    } catch (err) {
+      console.error(err);
+      setRevokeRoleStatus('Error revoking role.');
+    }
+  };
+
+  // Not connected
+  if (!isConnected) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 text-black">
+        <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-200 text-center max-w-sm w-full">
+          <h1 className="text-2xl font-bold mb-4">Admin Dashboard</h1>
+          <p className="text-gray-500 mb-6">Connect your wallet to continue</p>
+          <ConnectButton />
+        </div>
+      </div>
+    );
+  }
+
+  // Connected but not admin
+  if (!isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 text-black">
+        <div className="bg-white p-8 rounded-2xl shadow-xl border border-red-200 text-center max-w-sm w-full">
+          <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-red-600 text-2xl">✕</span>
           </div>
-          <span className="font-bold text-lg tracking-tight" style={{ color: '#e6e6fa' }}>CertVerify</span>
+          <h1 className="text-xl font-bold mb-2 text-red-700">Access Denied</h1>
+          <p className="text-gray-500 text-sm mb-4">
+            This dashboard is restricted to the contract admin only.
+          </p>
+          <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg mb-6">
+            <p className="text-xs text-gray-400 mb-1">Connected as:</p>
+            <p className="text-xs font-mono text-gray-700 break-all">{address}</p>
+          </div>
+          <ConnectButton />
         </div>
-        <div className="flex items-center gap-10">
-          <Link href="/verify" className="text-sm font-medium opacity-40 hover:opacity-100 transition-opacity" style={{ color: '#e6e6fa' }}>Verify</Link>
-          <Link href="/issue" className="text-sm font-medium opacity-40 hover:opacity-100 transition-opacity" style={{ color: '#e6e6fa' }}>Issue</Link>
-          <Link href="/admin" className="text-sm font-medium opacity-40 hover:opacity-100 transition-opacity" style={{ color: '#e6e6fa' }}>Admin</Link>
-          <Link href="/verify" className="px-5 py-2.5 rounded-xl text-sm font-bold text-white transition-opacity hover:opacity-90" style={{ background: 'linear-gradient(135deg, #4a4e8f, #a490c2)' }}>
-            Get Started
-          </Link>
+      </div>
+    );
+  }
+
+  // Admin view
+  return (
+    <div className="flex flex-col items-center p-12 min-h-screen bg-gray-50 text-black">
+      <nav className="w-full flex justify-between items-center mb-12">
+        <div>
+          <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+          <p className="text-xs text-green-600 font-medium mt-1">Admin access granted</p>
         </div>
+        <ConnectButton />
       </nav>
 
-      {/* Hero */}
-      <section className="relative z-10 flex flex-col items-center text-center px-6 pt-28 pb-24">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold mb-10" style={{ border: '1px solid rgba(164,144,194,0.2)', background: 'rgba(74,78,143,0.12)', color: '#a490c2' }}>
-          <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#a490c2' }}/>
-          Live on Polygon Blockchain
-        </div>
+      {/* Admin wallet info */}
+      <div className="w-full max-w-2xl mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+        <p className="text-sm text-green-700 font-medium">Connected as admin:</p>
+        <p className="text-xs font-mono text-green-800 mt-1">{address}</p>
+      </div>
 
-        <h1 className="font-black leading-none tracking-tighter mb-6" style={{ fontSize: 'clamp(3rem, 8vw, 6rem)', color: '#e6e6fa' }}>
-          The End of
-          <br />
-          <span style={{ background: 'linear-gradient(135deg, #4a4e8f 0%, #a490c2 50%, #e6e6fa 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-            Fake Certificates.
-          </span>
-        </h1>
-
-        <p className="text-lg max-w-lg leading-relaxed mb-12" style={{ color: 'rgba(230,230,250,0.45)' }}>
-          Blockchain-anchored certificates that cannot be forged, altered, or disputed.
-          Verify any credential in seconds — no phone calls, no paperwork.
+      {/* ISSUER ROLE MANAGEMENT */}
+      <div className="w-full max-w-2xl bg-white p-8 rounded-2xl shadow-xl border border-gray-200 mb-6">
+        <h2 className="text-xl font-bold mb-2">Manage Issuers</h2>
+        <p className="text-gray-500 text-sm mb-6">
+          Grant or revoke the Issuer role for any wallet address.
         </p>
 
-        <div className="flex gap-4">
-          <Link href="/verify" className="px-8 py-4 rounded-2xl font-bold text-base text-white hover:opacity-90 transition-opacity" style={{ background: 'linear-gradient(135deg, #4a4e8f, #a490c2)' }}>
-            Verify a Certificate
-          </Link>
-          <Link href="/issue" className="px-8 py-4 rounded-2xl font-bold text-base hover:opacity-80 transition-opacity" style={{ border: '1px solid rgba(164,144,194,0.2)', color: 'rgba(230,230,250,0.6)', background: 'rgba(74,78,143,0.08)' }}>
-            Issue Certificate
-          </Link>
+        {/* Grant */}
+        <div className="mb-6">
+          <label className="text-sm font-semibold text-gray-700 mb-2 block">Grant Issuer Role</label>
+          <div className="flex gap-3">
+            <input
+              type="text"
+              placeholder="Wallet address (0x...)"
+              className="flex-1 p-3 border border-gray-300 rounded-lg outline-none focus:border-blue-400 font-mono text-sm"
+              onChange={(e) => setAddressToGrant(e.target.value)}
+            />
+            <button
+              onClick={handleGrantIssuer}
+              disabled={isPending}
+              className="px-5 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 disabled:bg-gray-400 transition-all text-sm"
+            >
+              Grant
+            </button>
+          </div>
+          {grantStatus && <p className="mt-2 text-sm font-medium text-blue-600">{grantStatus}</p>}
         </div>
 
-        {/* Stats row */}
-        <div className="flex items-center gap-16 mt-24 pt-10" style={{ borderTop: '1px solid rgba(164,144,194,0.08)' }}>
-          {[['100%', 'Tamper-proof'], ['< 3s', 'Verification'], ['$0', 'Free to verify'], ['L2', 'Low gas fees']].map(([val, label], i, arr) => (
-            <div key={label} className="flex items-center gap-16">
-              <div className="text-center">
-                <p className="text-3xl font-black mb-1" style={{ color: '#a490c2' }}>{val}</p>
-                <p className="text-xs" style={{ color: 'rgba(230,230,250,0.35)' }}>{label}</p>
-              </div>
-              {i < arr.length - 1 && <div className="w-px h-8" style={{ background: 'rgba(164,144,194,0.1)' }}/>}
+        {/* Revoke role */}
+        <div className="mb-6">
+          <label className="text-sm font-semibold text-gray-700 mb-2 block">Revoke Issuer Role</label>
+          <div className="flex gap-3">
+            <input
+              type="text"
+              placeholder="Wallet address (0x...)"
+              className="flex-1 p-3 border border-gray-300 rounded-lg outline-none focus:border-red-400 font-mono text-sm"
+              onChange={(e) => setAddressToRevoke(e.target.value)}
+            />
+            <button
+              onClick={handleRevokeIssuer}
+              disabled={isPending}
+              className="px-5 py-3 bg-red-500 text-white rounded-lg font-bold hover:bg-red-600 disabled:bg-gray-400 transition-all text-sm"
+            >
+              Revoke
+            </button>
+          </div>
+          {revokeRoleStatus && <p className="mt-2 text-sm font-medium text-red-600">{revokeRoleStatus}</p>}
+        </div>
+
+        {/* Check role */}
+        <div>
+          <label className="text-sm font-semibold text-gray-700 mb-2 block">Check Issuer Status</label>
+          <div className="flex gap-3">
+            <input
+              type="text"
+              placeholder="Wallet address (0x...)"
+              className="flex-1 p-3 border border-gray-300 rounded-lg outline-none focus:border-gray-400 font-mono text-sm"
+              onChange={(e) => setCheckAddress(e.target.value)}
+            />
+            <button
+              onClick={() => recheckRole()}
+              className="px-5 py-3 bg-gray-700 text-white rounded-lg font-bold hover:bg-gray-800 transition-all text-sm"
+            >
+              Check
+            </button>
+          </div>
+          {checkAddress && hasIssuerRole !== undefined && (
+            <div className={`mt-2 p-3 rounded-lg text-sm font-medium ${hasIssuerRole ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+              {hasIssuerRole ? 'This address has the Issuer role' : 'This address does NOT have the Issuer role'}
             </div>
-          ))}
+          )}
         </div>
-      </section>
+      </div>
 
-      {/* How it works */}
-      <section className="relative z-10 px-16 py-24">
-        <div className="max-w-5xl mx-auto">
-          <p className="text-center text-xs font-bold tracking-widest uppercase mb-3" style={{ color: '#a490c2' }}>Process</p>
-          <h2 className="text-4xl font-black text-center mb-16" style={{ color: '#e6e6fa' }}>How it works</h2>
+      {/* REVOKE CERTIFICATE */}
+      <div className="w-full max-w-2xl bg-white p-8 rounded-2xl shadow-xl border border-gray-200 mb-6">
+        <h2 className="text-xl font-bold mb-2">Revoke Certificate</h2>
+        <p className="text-gray-500 text-sm mb-6">
+          Permanently mark a certificate as revoked on the blockchain. Cannot be undone.
+        </p>
+        <input
+          type="text"
+          placeholder="Certificate ID (0x...)"
+          className="w-full p-3 border border-gray-300 rounded-lg mb-4 outline-none focus:border-red-400 font-mono text-sm"
+          onChange={(e) => setCertIdToRevoke(e.target.value)}
+        />
+        <button
+          onClick={handleRevokeCert}
+          disabled={isPending}
+          className="w-full bg-red-600 text-white py-3 rounded-xl font-bold hover:bg-red-700 disabled:bg-gray-400 transition-all"
+        >
+          {isPending ? 'Confirming...' : 'Revoke Certificate'}
+        </button>
+        {revokeStatus && (
+          <p className="mt-4 text-center text-sm font-medium text-red-600">{revokeStatus}</p>
+        )}
+      </div>
 
-          <div className="grid grid-cols-3 gap-5">
-            {[
-              { n: '01', title: 'Upload Certificate', body: 'Institution uploads the certificate PDF. A SHA-256 cryptographic fingerprint is generated from the raw file bytes.' },
-              { n: '02', title: 'Anchored On-Chain', body: 'The hash and metadata are written permanently to Polygon blockchain. The file is pinned to IPFS for decentralized access.' },
-              { n: '03', title: 'Instant Verification', body: 'Anyone uploads the certificate. System rehashes it and compares against the blockchain record. Match means authentic.' },
-            ].map(item => (
-              <div key={item.n} className="relative p-8 rounded-2xl overflow-hidden" style={{ background: 'rgba(43,30,62,0.5)', border: '1px solid rgba(164,144,194,0.08)' }}>
-                <p className="text-7xl font-black absolute top-4 right-6 select-none" style={{ color: 'rgba(164,144,194,0.06)' }}>{item.n}</p>
-                <p className="text-xs font-bold mb-5" style={{ color: '#a490c2' }}>{item.n}</p>
-                <h3 className="font-bold text-base mb-3" style={{ color: '#e6e6fa' }}>{item.title}</h3>
-                <p className="text-sm leading-relaxed" style={{ color: 'rgba(230,230,250,0.4)' }}>{item.body}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Features */}
-      <section className="relative z-10 px-16 py-24">
-        <div className="max-w-5xl mx-auto">
-          <p className="text-center text-xs font-bold tracking-widest uppercase mb-3" style={{ color: '#a490c2' }}>Features</p>
-          <h2 className="text-4xl font-black text-center mb-16" style={{ color: '#e6e6fa' }}>Everything you need</h2>
-
-          <div className="grid grid-cols-3 gap-5">
-            {[
-              { title: 'Tamper-proof', body: 'Any change to a certificate instantly invalidates it. The blockchain record can never be altered.' },
-              { title: 'Instant verification', body: 'No manual checks or phone calls. Verify any certificate in under 3 seconds from anywhere.' },
-              { title: 'Role-based access', body: 'Only authorized issuers can create certificates. Full RBAC enforced by the smart contract.' },
-              { title: 'IPFS storage', body: 'Certificate files stored on IPFS — decentralized, always accessible, no single point of failure.' },
-              { title: 'Revocation system', body: 'Certificates issued in error can be revoked on-chain and immediately show as invalid.' },
-              { title: 'Layer 2 speed', body: 'Deployed on Polygon for near-zero gas fees and fast finality without sacrificing security.' },
-            ].map(f => (
-              <div key={f.title} className="p-6 rounded-2xl" style={{ background: 'rgba(43,30,62,0.4)', border: '1px solid rgba(164,144,194,0.08)' }}>
-                <div className="w-8 h-1 rounded-full mb-5" style={{ background: 'linear-gradient(90deg, #4a4e8f, #a490c2)' }}/>
-                <h4 className="font-bold text-sm mb-2" style={{ color: '#e6e6fa' }}>{f.title}</h4>
-                <p className="text-sm leading-relaxed" style={{ color: 'rgba(230,230,250,0.4)' }}>{f.body}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section className="relative z-10 px-16 py-24">
-        <div className="max-w-3xl mx-auto text-center p-16 rounded-3xl relative overflow-hidden" style={{ background: 'rgba(43,30,62,0.6)', border: '1px solid rgba(164,144,194,0.12)' }}>
-          <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(74,78,143,0.3) 0%, transparent 60%)' }}/>
-          <div className="relative z-10">
-            <p className="text-xs font-bold tracking-widest uppercase mb-4" style={{ color: '#a490c2' }}>Get started</p>
-            <h2 className="text-4xl font-black mb-4" style={{ color: '#e6e6fa' }}>Ready to verify?</h2>
-            <p className="mb-10 text-lg" style={{ color: 'rgba(230,230,250,0.4)' }}>Upload any certificate and find out instantly if it is authentic.</p>
-            <Link href="/verify" className="inline-block px-10 py-4 rounded-2xl font-bold text-base text-white hover:opacity-90 transition-opacity" style={{ background: 'linear-gradient(135deg, #4a4e8f, #a490c2)' }}>
-              Verify Now — It is Free
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="relative z-10 px-16 py-8 flex justify-between items-center text-sm" style={{ borderTop: '1px solid rgba(164,144,194,0.08)', color: 'rgba(230,230,250,0.25)' }}>
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black text-white" style={{ background: 'linear-gradient(135deg, #4a4e8f, #a490c2)' }}>CV</div>
-          <span style={{ color: 'rgba(230,230,250,0.5)' }}>CertVerify</span>
-        </div>
-        <p>Built on Polygon + IPFS</p>
-        <div className="flex gap-6">
-          <Link href="/verify" className="hover:text-white transition-colors">Verify</Link>
-          <Link href="/issue" className="hover:text-white transition-colors">Issue</Link>
-          <Link href="/admin" className="hover:text-white transition-colors">Admin</Link>
-        </div>
-      </footer>
-
+      {/* Quick links */}
+      <div className="w-full max-w-2xl grid grid-cols-2 gap-4">
+        <a href="/issue" className="p-4 bg-white border border-gray-200 rounded-xl text-center hover:border-blue-300 transition-all">
+          <p className="font-bold text-gray-800">Issue Certificate</p>
+          <p className="text-xs text-gray-500 mt-1">Go to issuer portal</p>
+        </a>
+        <a href="/verify" className="p-4 bg-white border border-gray-200 rounded-xl text-center hover:border-green-300 transition-all">
+          <p className="font-bold text-gray-800">Verify Certificate</p>
+          <p className="text-xs text-gray-500 mt-1">Go to verify portal</p>
+        </a>
+      </div>
     </div>
   );
 }

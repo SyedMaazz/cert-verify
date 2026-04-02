@@ -4,11 +4,16 @@ import { getDefaultConfig, RainbowKitProvider } from "@rainbow-me/rainbowkit";
 import { WagmiProvider } from "wagmi";
 import { polygon, hardhat } from "wagmi/chains";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
+import { http } from 'wagmi';
 
 const config = getDefaultConfig({
   appName: 'CertVerify',
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_ID || '12345',
   chains: [hardhat, polygon],
+  transports: {
+    [hardhat.id]: http(process.env.NEXT_PUBLIC_RPC_URL || 'http://127.0.0.1:8545'),
+    [polygon.id]: http(),
+  },
   ssr: true,
 });
 
