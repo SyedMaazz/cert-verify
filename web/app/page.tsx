@@ -1,24 +1,25 @@
 'use client';
 import { useState } from 'react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { useWriteContract, useAccount, useReadContract } from 'wagmi';
+import { useWriteContract, useAccount, useReadContract, useWaitForTransactionReceipt } from 'wagmi';
 import { certificateABI } from '@/constants/abi';
 
 const ADMIN_ADDRESS = process.env.NEXT_PUBLIC_ADMIN_ADDRESS?.toLowerCase();
 
 export default function AdminPage() {
   const [certIdToRevoke, setCertIdToRevoke] = useState('');
-  const [revokeStatus, setRevokeStatus] = useState('');
   const [addressToGrant, setAddressToGrant] = useState('');
   const [addressToRevoke, setAddressToRevoke] = useState('');
   const [checkAddress, setCheckAddress] = useState('');
-  const [grantStatus, setGrantStatus] = useState('');
-  const [revokeRoleStatus, setRevokeRoleStatus] = useState('');
 
   const { address, isConnected } = useAccount();
-  const { writeContract, isPending } = useWriteContract();
+  const { writeContract, isPending, data: txHash } = useWriteContract();
 
   const isAdmin = isConnected && address?.toLowerCase() === ADMIN_ADDRESS;
+
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+    hash: txHash,
+  });
 
   const { data: ISSUER_ROLE } = useReadContract({
     address: process.env.NEXT_PUBLIC_CONTRACT_ADDRESS as `0x${string}`,
@@ -39,58 +40,45 @@ export default function AdminPage() {
   const handleRevokeCert = () => {
     if (!certIdToRevoke) return alert('Please enter a Certificate ID');
     if (!certIdToRevoke.startsWith('0x')) return alert('Certificate ID must start with 0x');
-    try {
-      setRevokeStatus('Confirm in your wallet...');
-      writeContract({
-        address: process.env.NEXT_PUBLIC_CONTRACT_ADDRESS as `0x${string}`,
-        abi: certificateABI,
-        functionName: 'revokeCertificate',
-        args: [certIdToRevoke as `0x${string}`],
-      });
-      setRevokeStatus('Revocation submitted!');
-    } catch (err) {
-      console.error(err);
-      setRevokeStatus('Error revoking certificate.');
-    }
+    writeContract({
+      address: process.env.NEXT_PUBLIC_CONTRACT_ADDRESS as `0x${string}`,
+      abi: certificateABI,
+      functionName: 'revokeCertificate',
+      args: [certIdToRevoke as `0x${string}`],
+    });
   };
 
   const handleGrantIssuer = () => {
     if (!addressToGrant || !addressToGrant.startsWith('0x')) return alert('Please enter a valid wallet address');
     if (!ISSUER_ROLE) return alert('Could not read ISSUER_ROLE from contract');
-    try {
-      setGrantStatus('Confirm in your wallet...');
-      writeContract({
-        address: process.env.NEXT_PUBLIC_CONTRACT_ADDRESS as `0x${string}`,
-        abi: certificateABI,
-        functionName: 'grantRole',
-        args: [ISSUER_ROLE, addressToGrant as `0x${string}`],
-      });
-      setGrantStatus('Issuer role granted successfully!');
-    } catch (err) {
-      console.error(err);
-      setGrantStatus('Error granting role.');
-    }
+    writeContract({
+      address: process.env.NEXT_PUBLIC_CONTRACT_ADDRESS as `0x${string}`,
+      abi: certificateABI,
+      functionName: 'grantRole',
+      args: [ISSUER_ROLE, addressToGrant as `0x${string}`],
+    });
   };
 
   const handleRevokeIssuer = () => {
     if (!addressToRevoke || !addressToRevoke.startsWith('0x')) return alert('Please enter a valid wallet address');
     if (!ISSUER_ROLE) return alert('Could not read ISSUER_ROLE from contract');
-    try {
-      setRevokeRoleStatus('Confirm in your wallet...');
-      writeContract({
-        address: process.env.NEXT_PUBLIC_CONTRACT_ADDRESS as `0x${string}`,
-        abi: certificateABI,
-        functionName: 'revokeRole',
-        args: [ISSUER_ROLE, addressToRevoke as `0x${string}`],
-      });
-      setRevokeRoleStatus('Issuer role revoked!');
-    } catch (err) {
-      console.error(err);
-      setRevokeRoleStatus('Error revoking role.');
-    }
+    writeContract({
+      address: process.env.NEXT_PUBLIC_CONTRACT_ADDRESS as `0x${string}`,
+      abi: certificateABI,
+      functionName: 'revokeRole',
+      args: [ISSUER_ROLE, addressToRevoke as `0x${string}`],
+    });
   };
 
-  // Not connected
+  const getTxStatus = () => {
+    if (isPending) return { msg: 'Confirm in your wallet...', color: 'text-blue-600' };
+    if (isConfirming) return { msg: 'Waiting for confirmation...', color: 'text-blue-600' };
+    if (isConfirmed) return { msg: 'Transaction confirmed!', color: 'text-green-600' };
+    return null;
+  };
+
+  const txStatus = getTxStatus();
+
   if (!isConnected) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 text-black">
@@ -103,7 +91,6 @@ export default function AdminPage() {
     );
   }
 
-  // Connected but not admin
   if (!isAdmin) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 text-black">
@@ -125,7 +112,6 @@ export default function AdminPage() {
     );
   }
 
-  // Admin view
   return (
     <div className="flex flex-col items-center p-12 min-h-screen bg-gray-50 text-black">
       <nav className="w-full flex justify-between items-center mb-12">
@@ -141,6 +127,13 @@ export default function AdminPage() {
         <p className="text-sm text-green-700 font-medium">Connected as admin:</p>
         <p className="text-xs font-mono text-green-800 mt-1">{address}</p>
       </div>
+
+      {/* Transaction status banner */}
+      {txStatus && (
+        <div className="w-full max-w-2xl mb-4 p-3 bg-white border border-gray-200 rounded-xl text-center">
+          <p className={`text-sm font-medium ${txStatus.color}`}>{txStatus.msg}</p>
+        </div>
+      )}
 
       {/* ISSUER ROLE MANAGEMENT */}
       <div className="w-full max-w-2xl bg-white p-8 rounded-2xl shadow-xl border border-gray-200 mb-6">
@@ -161,13 +154,12 @@ export default function AdminPage() {
             />
             <button
               onClick={handleGrantIssuer}
-              disabled={isPending}
+              disabled={isPending || isConfirming}
               className="px-5 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 disabled:bg-gray-400 transition-all text-sm"
             >
               Grant
             </button>
           </div>
-          {grantStatus && <p className="mt-2 text-sm font-medium text-blue-600">{grantStatus}</p>}
         </div>
 
         {/* Revoke role */}
@@ -182,13 +174,12 @@ export default function AdminPage() {
             />
             <button
               onClick={handleRevokeIssuer}
-              disabled={isPending}
+              disabled={isPending || isConfirming}
               className="px-5 py-3 bg-red-500 text-white rounded-lg font-bold hover:bg-red-600 disabled:bg-gray-400 transition-all text-sm"
             >
               Revoke
             </button>
           </div>
-          {revokeRoleStatus && <p className="mt-2 text-sm font-medium text-red-600">{revokeRoleStatus}</p>}
         </div>
 
         {/* Check role */}
@@ -230,14 +221,11 @@ export default function AdminPage() {
         />
         <button
           onClick={handleRevokeCert}
-          disabled={isPending}
+          disabled={isPending || isConfirming}
           className="w-full bg-red-600 text-white py-3 rounded-xl font-bold hover:bg-red-700 disabled:bg-gray-400 transition-all"
         >
-          {isPending ? 'Confirming...' : 'Revoke Certificate'}
+          {isPending ? 'Confirm in wallet...' : isConfirming ? 'Confirming...' : 'Revoke Certificate'}
         </button>
-        {revokeStatus && (
-          <p className="mt-4 text-center text-sm font-medium text-red-600">{revokeStatus}</p>
-        )}
       </div>
 
       {/* Quick links */}

@@ -1,9 +1,9 @@
 "use client";
 import { useState } from "react";
-import { calculateFileHash } from "../../lib/hash";
+import { calculateFileHash } from "@/lib/hash";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useReadContract } from "wagmi";
-import { certificateABI } from "../../constants/abi";
+import { certificateABI } from "@/constants/abi";
 
 export default function VerifyPage() {
   const [file, setFile] = useState<File | null>(null);

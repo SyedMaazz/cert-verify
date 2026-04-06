@@ -1,9 +1,9 @@
 'use client';
 import { useState } from 'react';
-import { calculateFileHash } from '../../lib/hash';
+import { calculateFileHash } from '@/lib/hash';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { certificateABI } from '../../constants/abi';
+import { certificateABI } from '@/constants/abi';
 
 export default function IssuePage() {
   const [file, setFile] = useState<File | null>(null);
@@ -11,7 +11,6 @@ export default function IssuePage() {
   const [status, setStatus] = useState('');
   const [generatedCertId, setGeneratedCertId] = useState('');
   const [ipfsCID, setIpfsCID] = useState('');
-  const [isIssued, setIsIssued] = useState(false);
 
   const { writeContract, isPending, data: txHash } = useWriteContract();
 
@@ -21,14 +20,11 @@ export default function IssuePage() {
 
   const handleIssue = async () => {
     if (!file || !studentId) return alert("Please provide both file and Student ID");
-    if (isIssued) return alert("Certificate already issued. Refresh to issue a new one.");
 
     try {
-      // Step 1: Hash the file
       setStatus('Calculating fingerprint...');
       const fileHash = await calculateFileHash(file);
 
-      // Step 2: Upload to IPFS via API route
       setStatus('Uploading to IPFS...');
       const formData = new FormData();
       formData.append('file', file);
@@ -43,7 +39,6 @@ export default function IssuePage() {
       const { cid } = await ipfsRes.json();
       setIpfsCID(cid);
 
-      // Step 3: Generate cert ID and store on blockchain
       const certId = `0x${Buffer.from(studentId + Date.now()).toString('hex').slice(0, 64).padEnd(64, '0')}` as `0x${string}`;
       setGeneratedCertId(certId);
 
@@ -55,12 +50,9 @@ export default function IssuePage() {
         args: [certId, fileHash as `0x${string}`, cid, studentId],
       });
 
-      setIsIssued(true);
-
     } catch (err) {
       console.error(err);
       setStatus('Error during issuance. Please try again.');
-      setIsIssued(false);
     }
   };
 
@@ -68,7 +60,6 @@ export default function IssuePage() {
     if (isPending) return 'Waiting for wallet...';
     if (isConfirming) return 'Confirming on blockchain...';
     if (isConfirmed) return 'Certificate Issued!';
-    if (isIssued) return 'Already Issued';
     return 'Issue on Blockchain';
   };
 
@@ -92,25 +83,23 @@ export default function IssuePage() {
           placeholder="Student ID (e.g. 2024-001)"
           className="w-full p-3 border border-gray-300 rounded-lg mb-4 outline-none focus:border-blue-500 disabled:bg-gray-100"
           onChange={(e) => setStudentId(e.target.value)}
-          disabled={isIssued}
+          disabled={isConfirmed}
         />
 
         <input
           type="file"
           className="w-full mb-6 text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50"
           onChange={(e) => setFile(e.target.files?.[0] || null)}
-          disabled={isIssued}
+          disabled={isConfirmed}
         />
 
         <button
           onClick={handleIssue}
-          disabled={isPending || isConfirming || isConfirmed || isIssued}
+          disabled={isPending || isConfirming || isConfirmed}
           className={`w-full py-3 rounded-xl font-bold transition-all shadow-lg ${
             isConfirmed
               ? 'bg-green-600 text-white shadow-green-200 cursor-default'
-              : isIssued
-              ? 'bg-gray-400 text-white cursor-not-allowed'
-              : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-200'
+              : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-200 disabled:bg-gray-400'
           }`}
         >
           {getButtonLabel()}
@@ -153,7 +142,6 @@ export default function IssuePage() {
               setStatus('');
               setGeneratedCertId('');
               setIpfsCID('');
-              setIsIssued(false);
             }}
             className="w-full mt-4 py-2 rounded-xl font-medium border border-gray-300 text-gray-600 hover:bg-gray-50 transition-all text-sm"
           >
