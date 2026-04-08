@@ -2,7 +2,17 @@
 
 A full-stack decentralized application that solves certificate forgery and slow manual verification by anchoring academic credentials on the blockchain.
 
-*Built with Next.js, Solidity, Hardhat, IPFS (Pinata), and Polygon.*
+*Built with Next.js, Solidity, Hardhat, IPFS (Pinata), and Polygon Amoy.*
+
+---
+
+## 🌐 Live Deployment
+
+| | |
+|---|---|
+| **Network** | Polygon Amoy Testnet |
+| **Contract Address** | [`0xD9695Ed9Bd5D42e0589e0A26064c030219DC14C1`](https://amoy.polygonscan.com/address/0xD9695Ed9Bd5D42e0589e0A26064c030219DC14C1) |
+| **Block Explorer** | [View on Polygonscan](https://amoy.polygonscan.com/address/0xD9695Ed9Bd5D42e0589e0A26064c030219DC14C1) |
 
 ---
 
@@ -27,7 +37,7 @@ Any modification to an issued certificate — even a single pixel — changes th
 ✅ **Issuer management** — Admin can grant or revoke the Issuer role for any wallet  
 ✅ **Admin-protected dashboard** — Only the deployer wallet can access the admin panel  
 ✅ **Wallet integration** — MetaMask / WalletConnect via RainbowKit  
-✅ **Layer 2 deployment** — Polygon for low gas fees  
+✅ **Layer 2 deployment** — Polygon Amoy for low gas fees  
 ✅ **TypeScript** — Full type safety across the entire codebase  
 
 ---
@@ -65,6 +75,7 @@ cert-verify/
 ## ⚙️ How It Works
 
 ### Certificate Issuance
+
 1. Authorized issuer uploads a certificate file and enters Student ID
 2. System generates a SHA-256 hash of the file bytes
 3. File is uploaded to IPFS via Pinata — returns a CID
@@ -72,6 +83,7 @@ cert-verify/
 5. Transaction is confirmed on the blockchain — record is now immutable
 
 ### Certificate Verification
+
 1. Verifier uploads the certificate file and enters the Certificate ID
 2. System re-generates the SHA-256 hash of the uploaded file
 3. Smart contract is queried for the stored hash using the Certificate ID
@@ -89,7 +101,7 @@ cert-verify/
 | **Frontend** | Next.js 14 (App Router), TypeScript, Tailwind CSS |
 | **Wallet** | RainbowKit, wagmi v3, MetaMask |
 | **Blockchain** | Solidity, Hardhat, OpenZeppelin AccessControl |
-| **Network** | Polygon PoS (L2) / Hardhat local |
+| **Network** | Polygon Amoy Testnet (Chain ID: 80002) |
 | **Storage** | IPFS via Pinata SDK |
 | **Hashing** | SHA-256 (Web Crypto API) |
 
@@ -103,6 +115,7 @@ cert-verify/
 - Git
 - MetaMask browser extension
 - A [Pinata](https://pinata.cloud) account (free tier works)
+- A [WalletConnect](https://cloud.walletconnect.com) project ID (free)
 
 ### 1. Clone the repository
 
@@ -126,9 +139,9 @@ Open a dedicated terminal and keep it running:
 npx hardhat node
 ```
 
-You will see a list of test accounts with private keys. Copy the **Private Key of Account #0** — you'll need it for MetaMask.
+You will see a list of test accounts with private keys. Copy the **Private Key of Account #0** — you will need it for MetaMask.
 
-### 4. Deploy the contract
+### 4. Deploy the contract locally
 
 Open a second terminal:
 
@@ -188,6 +201,47 @@ In MetaMask:
 
 ---
 
+## 🌍 Deploying to Polygon Amoy Testnet
+
+### 1. Add Polygon Amoy to MetaMask
+
+```
+Network Name:    Polygon Amoy Testnet
+RPC URL:         https://rpc-amoy.polygon.technology
+Chain ID:        80002
+Currency Symbol: POL
+Block Explorer:  https://amoy.polygonscan.com
+```
+
+### 2. Get free test POL
+
+Go to [faucet.polygon.technology](https://faucet.polygon.technology), verify with GitHub, and claim test POL for your wallet.
+
+### 3. Add your private key to contracts/.env
+
+```bash
+PRIVATE_KEY=your_wallet_private_key_without_0x_prefix
+POLYGONSCAN_API_KEY=your_polygonscan_api_key
+```
+
+### 4. Deploy to Amoy
+
+```bash
+cd contracts
+npm install dotenv
+npx hardhat run scripts/deploy.js --network amoy
+```
+
+### 5. Update web/.env.local for Amoy
+
+```bash
+NEXT_PUBLIC_CONTRACT_ADDRESS=0xYOUR_AMOY_CONTRACT_ADDRESS
+NEXT_PUBLIC_RPC_URL=https://rpc-amoy.polygon.technology
+NEXT_PUBLIC_ADMIN_ADDRESS=0xYOUR_DEPLOYER_WALLET_ADDRESS
+```
+
+---
+
 ## 🖥️ Application Pages
 
 | Page | URL | Description |
@@ -231,7 +285,7 @@ To grant another wallet the Issuer role:
 ## ⚠️ Troubleshooting
 
 **Transaction stuck on "Confirming on blockchain..."?**
-- Make sure `npx hardhat node` is running in a terminal
+- Make sure `npx hardhat node` is running in a terminal (local only)
 - Every time you restart the Hardhat node, redeploy the contract and update `NEXT_PUBLIC_CONTRACT_ADDRESS` in `.env.local`
 - Restart the dev server after updating `.env.local`
 
@@ -239,14 +293,25 @@ To grant another wallet the Issuer role:
 - Check that `PINATA_JWT` is correctly set in `.env.local`
 - Make sure there are no extra spaces or line breaks in the JWT value
 - Verify your Pinata API key has Admin permissions
+- Check that `NEXT_PUBLIC_PINATA_GATEWAY` has no typo (must end in `GATEWAY` not `GATEWA`)
 
 **MetaMask showing wrong network?**
-- Switch MetaMask to the **Hardhat Local** network (Chain ID: 31337)
+- For local: Switch MetaMask to **Hardhat Local** (Chain ID: 31337)
+- For testnet: Switch MetaMask to **Polygon Amoy Testnet** (Chain ID: 80002)
 - If you restarted Hardhat node, reset your MetaMask account: Settings → Advanced → Reset Account
 
 **Admin dashboard showing Access Denied?**
-- Make sure `NEXT_PUBLIC_ADMIN_ADDRESS` in `.env.local` matches exactly the wallet address you're connected with
+- Make sure `NEXT_PUBLIC_ADMIN_ADDRESS` in `.env.local` matches exactly the wallet address you are connected with
 - The address comparison is case-insensitive but must be the correct deployer wallet
+
+**Transactions failing on Amoy with "Network fee unavailable"?**
+- The certificate ID you are trying to use may not exist on Amoy — only use cert IDs issued on the same network
+- Make sure you have enough POL balance for gas fees
+- Try claiming more POL from [faucet.polygon.technology](https://faucet.polygon.technology)
+
+**Revoke not working?**
+- You must first issue a certificate on the same network, then use that exact cert ID to revoke
+- Cert IDs from local Hardhat cannot be used on Amoy and vice versa
 
 ---
 
@@ -258,10 +323,11 @@ To grant another wallet the Issuer role:
 - [x] Public verification portal
 - [x] Admin dashboard with issuer management
 - [x] Landing page
-- [ ] Polygon Amoy testnet deployment
+- [x] Polygon Amoy testnet deployment
 - [ ] Multi-signature admin (Gnosis Safe) for decentralized governance
 - [ ] Certificate batch issuance
 - [ ] QR code generation for easy sharing
+- [ ] Vercel production deployment
 
 ---
 
