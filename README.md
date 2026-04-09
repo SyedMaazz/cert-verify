@@ -29,16 +29,16 @@ Any modification to an issued certificate — even a single pixel — changes th
 
 ## ✨ Features
 
-✅ **Tamper-proof certificates** — SHA-256 hash anchored permanently on-chain  
-✅ **IPFS storage** — Certificate files stored on decentralized IPFS via Pinata  
-✅ **Instant verification** — Anyone can verify a certificate in under 3 seconds  
-✅ **Role-based access control (RBAC)** — Only authorized issuers can issue certificates  
-✅ **Certificate revocation** — Admin can revoke certificates that were issued in error  
-✅ **Issuer management** — Admin can grant or revoke the Issuer role for any wallet  
-✅ **Admin-protected dashboard** — Only the deployer wallet can access the admin panel  
-✅ **Wallet integration** — MetaMask / WalletConnect via RainbowKit  
-✅ **Layer 2 deployment** — Polygon Amoy for low gas fees  
-✅ **TypeScript** — Full type safety across the entire codebase  
+- **Tamper-proof certificates** — SHA-256 hash anchored permanently on-chain  
+- **IPFS storage** — Certificate files stored on decentralized IPFS via Pinata  
+- **Instant verification** — Anyone can verify a certificate in under 3 seconds  
+- **Role-based access control (RBAC)** — Only authorized issuers can issue certificates  
+- **Certificate revocation** — Admin can revoke certificates that were issued in error  
+- **Issuer management** — Admin can grant or revoke the Issuer role for any wallet  
+- **Admin-protected dashboard** — Only the deployer wallet can access the admin panel  
+- **Wallet integration** — MetaMask / WalletConnect via RainbowKit  
+- **Layer 2 deployment** — Polygon Amoy for low gas fees  
+- **TypeScript** — Full type safety across the entire codebase  
 
 ---
 
@@ -88,9 +88,9 @@ cert-verify/
 2. System re-generates the SHA-256 hash of the uploaded file
 3. Smart contract is queried for the stored hash using the Certificate ID
 4. Hashes are compared:
-   - **Match + not revoked** → ✅ Valid Certificate
-   - **Hash mismatch** → ❌ Tampered / Invalid
-   - **Revoked** → ⚠️ Certificate Revoked
+   - **Match + not revoked** → Valid Certificate
+   - **Hash mismatch** → Tampered / Invalid
+   - **Revoked** → Certificate Revoked
 
 ---
 
