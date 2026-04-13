@@ -16,7 +16,7 @@ A full-stack decentralized application that solves certificate forgery and slow 
 
 ---
 
-## 🎯 What is This?
+##  What is This?
 
 CertVerify is a tamper-proof certificate issuance and verification system. It uses a hybrid architecture:
 
@@ -27,7 +27,7 @@ Any modification to an issued certificate — even a single pixel — changes th
 
 ---
 
-## ✨ Features
+##  Features
 
 - **Tamper-proof certificates** — SHA-256 hash anchored permanently on-chain  
 - **IPFS storage** — Certificate files stored on decentralized IPFS via Pinata  
@@ -42,7 +42,7 @@ Any modification to an issued certificate — even a single pixel — changes th
 
 ---
 
-## 🏗️ System Architecture
+##  System Architecture
 
 ```
 cert-verify/
@@ -72,7 +72,7 @@ cert-verify/
 
 ---
 
-## ⚙️ How It Works
+##  How It Works
 
 ### Certificate Issuance
 
@@ -94,7 +94,7 @@ cert-verify/
 
 ---
 
-## 📦 Tech Stack
+##  Tech Stack
 
 | Layer | Technology |
 |---|---|
@@ -107,7 +107,7 @@ cert-verify/
 
 ---
 
-## 🚀 Running Locally
+##  Running Locally
 
 ### Prerequisites
 
@@ -242,7 +242,7 @@ NEXT_PUBLIC_ADMIN_ADDRESS=0xYOUR_DEPLOYER_WALLET_ADDRESS
 
 ---
 
-## 🖥️ Application Pages
+##  Application Pages
 
 | Page | URL | Description |
 |---|---|---|
@@ -253,7 +253,7 @@ NEXT_PUBLIC_ADMIN_ADDRESS=0xYOUR_DEPLOYER_WALLET_ADDRESS
 
 ---
 
-## 🔐 Role-Based Access Control
+##  Role-Based Access Control
 
 The smart contract uses OpenZeppelin's `AccessControl`:
 
@@ -267,7 +267,7 @@ To grant another wallet the Issuer role:
 
 ---
 
-## 🛠️ Smart Contract
+##  Smart Contract
 
 **`CertificateRegistry.sol`** — Core contract with the following functions:
 
@@ -282,7 +282,7 @@ To grant another wallet the Issuer role:
 
 ---
 
-## ⚠️ Troubleshooting
+##  Troubleshooting
 
 **Transaction stuck on "Confirming on blockchain..."?**
 - Make sure `npx hardhat node` is running in a terminal (local only)
@@ -315,7 +315,7 @@ To grant another wallet the Issuer role:
 
 ---
 
-## 🗺️ Roadmap
+##  Roadmap
 
 - [x] Smart contract with RBAC, issuance, verification, revocation
 - [x] IPFS integration via Pinata
